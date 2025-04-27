@@ -5,11 +5,13 @@ public class EnemyChase : MonoBehaviour
 {
     public Transform player;
     private NavMeshAgent agent;
+    private Animator animator;
     private bool isSeen = false;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
+        animator = GetComponent<Animator>();
     }
 
     void Update()
@@ -22,7 +24,12 @@ public class EnemyChase : MonoBehaviour
         }
         else
         {
-            agent.ResetPath(); 
+            agent.ResetPath();
+        }
+
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", agent.velocity.magnitude);
         }
     }
 
