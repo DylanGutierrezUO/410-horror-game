@@ -1,74 +1,95 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-// Controls the enemy chasing behavior and animation based on player visibility.
+/// <summary>
+/// Controls the enemy chasing behavior and stopping behavior based on player visibility or spotlight detection.
+/// </summary>
 public class EnemyChase : MonoBehaviour
 {
-    public Transform player;             // Reference to the player the enemy chases.
-    private NavMeshAgent agent;           // Reference to the enemy's NavMeshAgent component.
-    private Animator animator;            // Reference to the enemy's Animator component.
-    private bool isSeen = false;           // Whether the enemy is currently being seen by the player.
+    public Transform player;         // Reference to the player object (for chasing)
+    public Transform playerCamera;   // Reference to the player's camera (for looking detection)
+
+    private NavMeshAgent agent;       // NavMeshAgent component for movement
+    private Animator animator;        // Animator component for movement animation
+
+    private bool isSeenByPlayer = false;  // True if player is looking at the enemy
+    private bool isSeenByLight = false;   // True if enemy is in an active spotlight
+
+    public float viewAngle = 60f;     // Vision cone width (degrees)
+    public float viewDistance = 20f;  // Max distance player can see the enemy
 
     void Start()
     {
-        // Get required components at the start.
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
     }
 
     void Update()
     {
-        // If there is no player assigned, exit early.
-        if (player == null) return;
+        if (player == null || playerCamera == null) return;
 
-        // Calculate distance between enemy and player.
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        CheckIfSeenByPlayer();
 
-        if (!isSeen) // If the enemy is not being seen.
+        // Enemy stops if seen by player OR caught in a spotlight
+        if (!isSeenByPlayer && !isSeenByLight)
         {
-            if (distanceToPlayer > agent.stoppingDistance)
+            if (Vector3.Distance(transform.position, player.position) > agent.stoppingDistance)
             {
-                // Chase the player if not close enough.
                 agent.SetDestination(player.position);
             }
             else
             {
-                // Stop moving if already within stopping distance.
                 agent.ResetPath();
             }
         }
-        else // If the enemy is being seen.
+        else
         {
-            // Stop moving while being watched.
             agent.ResetPath();
         }
 
-        // Update animation speed parameter based on agent's current velocity.
+        // Update Animator speed based on movement velocity
         if (animator != null)
         {
             animator.SetFloat("Speed", agent.velocity.magnitude);
         }
     }
 
-    // External method to set whether the enemy is being seen.
-    public void SetSeen(bool seen)
+    /// <summary>
+    /// Checks if the player is currently looking at the enemy within a field of view and distance.
+    /// </summary>
+    void CheckIfSeenByPlayer()
     {
-        isSeen = seen;
+        Vector3 dirToEnemy = (transform.position - playerCamera.position).normalized;
+        float angleBetween = Vector3.Angle(playerCamera.forward, dirToEnemy);
+
+        if (angleBetween < viewAngle / 2f && Vector3.Distance(playerCamera.position, transform.position) <= viewDistance)
+        {
+            isSeenByPlayer = true;
+        }
+        else
+        {
+            isSeenByPlayer = false;
+        }
     }
 
+    /// <summary>
+    /// When enemy enters a spotlight trigger, check if the light is enabled.
+    /// </summary>
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Spotlight"))
         {
-            // retrieve the Light component from the parent
             Light spotlight = other.GetComponentInParent<Light>();
             if (spotlight != null)
             {
-                SetSeen(spotlight.enabled);
+                isSeenByLight = spotlight.enabled;
             }
         }
     }
 
+    /// <summary>
+    /// While enemy stays inside the spotlight, keep checking if the light is still on.
+    /// </summary>
     private void OnTriggerStay(Collider other)
     {
         if (other.CompareTag("Spotlight"))
@@ -76,18 +97,31 @@ public class EnemyChase : MonoBehaviour
             Light spotlight = other.GetComponentInParent<Light>();
             if (spotlight != null)
             {
-                // continuously update enemy state based on spotlight status.
-                SetSeen(spotlight.enabled);
+                isSeenByLight = spotlight.enabled;
             }
         }
     }
 
+    /// <summary>
+    /// When enemy exits the spotlight trigger, stop considering it seen by light.
+    /// </summary>
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Spotlight"))
         {
-            // resume movement
-            SetSeen(false);
+            isSeenByLight = false;
         }
     }
+    
+    private void OnCollisionEnter(Collision collision)
+    {
+        // Look on the collided object _or any of its parents_ for a PlayerDeathHandler
+        var deathHandler = collision.collider.GetComponentInParent<PlayerDeathHandler>();
+        if (deathHandler != null)
+        {
+            deathHandler.Die();
+        }
+    }
+
+
 }
