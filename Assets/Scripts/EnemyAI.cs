@@ -11,7 +11,7 @@ public class EnemyChase : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>();
+        animator = GetComponent<Animator>();            
     }
 
     void Update()
@@ -36,5 +36,36 @@ public class EnemyChase : MonoBehaviour
     public void SetSeen(bool seen)
     {
         isSeen = seen;
+    }
+
+   private void OnTriggerEnter(Collider other)
+    {
+        Light spotlight = other.GetComponent<Light>();
+        if (other.CompareTag("Spotlight"))
+        {
+            if (spotlight != null)
+            {
+                SetSeen(spotlight.enabled);
+            }
+        }
+    }
+    void OnTriggerStay(Collider other)
+    {
+        Light spotlight = other.GetComponent<Light>();
+        if (other.CompareTag("Spotlight"))
+        {
+            if (spotlight != null)
+            {
+                SetSeen(spotlight.enabled);
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Spotlight"))
+        {
+            SetSeen(false);
+        }
     }
 }
