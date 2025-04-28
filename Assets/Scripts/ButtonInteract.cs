@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class ButtonInteract : MonoBehaviour, Interactable
 {
-    public ParticleSystem effect;
+    public Light spotlight;
     public float cooldownTime = 2f;
     private bool canActivate = true;
 
@@ -10,7 +10,10 @@ public class ButtonInteract : MonoBehaviour, Interactable
     {
         if (!canActivate) return;
 
-        effect.Play();
+        if (spotlight != null)
+        {
+            spotlight.enabled = !spotlight.enabled;
+        }
         canActivate = false;
         Invoke(nameof(ResetCooldown), cooldownTime);
     }

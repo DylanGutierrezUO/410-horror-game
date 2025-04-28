@@ -55,4 +55,39 @@ public class EnemyChase : MonoBehaviour
     {
         isSeen = seen;
     }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Spotlight"))
+        {
+            // retrieve the Light component from the parent
+            Light spotlight = other.GetComponentInParent<Light>();
+            if (spotlight != null)
+            {
+                SetSeen(spotlight.enabled);
+            }
+        }
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (other.CompareTag("Spotlight"))
+        {
+            Light spotlight = other.GetComponentInParent<Light>();
+            if (spotlight != null)
+            {
+                // continuously update enemy state based on spotlight status.
+                SetSeen(spotlight.enabled);
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Spotlight"))
+        {
+            // resume movement
+            SetSeen(false);
+        }
+    }
 }
