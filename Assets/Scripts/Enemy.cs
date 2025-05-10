@@ -64,7 +64,7 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
 
         // If player is not looking and enemy is in range, move toward player
         // Check if the player is not looking at the enemy and the enemy is within detection range
-        if (!isPlayerLooking && distance < detectionDistance)
+        if (!isPlayerLooking && distance < detectionDistance && distance > agent.stoppingDistance)
         {
             agent.isStopped = false; // Enable movement.
             agent.SetDestination(player.position); // Set the destination to the player's position.
