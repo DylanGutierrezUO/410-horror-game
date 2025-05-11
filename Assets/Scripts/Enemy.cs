@@ -22,6 +22,10 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
     /// </summary>
     void Start()
     {
+        // Stops enemy at the players feet
+        agent = GetComponent<NavMeshAgent>();
+        agent.stoppingDistance = 0f;
+
         animator = GetComponent<Animator>(); // Get the Animator component for controlling animations/
         agent = GetComponent<NavMeshAgent>(); // Get the NavMeshAgent component for pathfinding.
     }
@@ -60,7 +64,7 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
         Vector3 toEnemy = (transform.position - player.position).normalized; // Direction from player to enemy.
         Debug.DrawRay(player.position, player.forward * 2f, Color.green); // Draw ray from player to show direction of view.
         Debug.DrawRay(player.position, toEnemy * 2f, Color.red); // Draw ray from player to enemy to show direction to enemy.
-        Debug.Log($"Distance: {distance}, isPlayerLooking: {isPlayerLooking}"); // Log distance and visibility status for debugging.
+        //Debug.Log($"Distance: {distance}, isPlayerLooking: {isPlayerLooking}"); // Log distance and visibility status for debugging.
 
         // If player is not looking and enemy is in range, move toward player
         // Check if the player is not looking at the enemy and the enemy is within detection range
@@ -81,5 +85,30 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
         Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
         transform.LookAt(lookPos);
     }
+
+    // Destroys enemy on level completion
+    void OnEnable()
+    {
+        GameManager.OnLevelCompleteEvent += HandleLevelComplete;
+    }
+
+    void OnDisable()
+    {
+        GameManager.OnLevelCompleteEvent -= HandleLevelComplete;
+    }
+
+    private void HandleLevelComplete()
+    {
+        // stop all behavior and remove from scene
+        Destroy(gameObject);
+    }
+
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (hit.collider.CompareTag("Player"))
+            GameManager.Instance.PlayerDied();
+    }
+
+
 
 }
