@@ -1,26 +1,58 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Collider))]
 public class FreezeZoneTrigger : MonoBehaviour
 {
-    private void OnTriggerEnter(Collider other)
+    [Tooltip("Drag your Player Transform here so we know where to chase.")]
+    public Transform player;
+
+    // internal list of everyone we froze
+    private readonly HashSet<NavMeshAgent> _frozenAgents = new HashSet<NavMeshAgent>();
+    private Collider _col;
+
+    void Awake()
     {
-        // did an enemy walk in?
+        _col = GetComponent<Collider>();
+        _col.isTrigger = true;            // make sure it's a trigger
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
         var agent = other.GetComponent<NavMeshAgent>();
         var anim  = other.GetComponent<Animator>();
         if (agent != null)
         {
-            agent.isStopped       = true;
+            agent.isStopped = true;       // freeze movement
             if (anim) anim.SetBool("IsWalking", false);
+            _frozenAgents.Add(agent);     // remember it
         }
     }
 
-    private void OnTriggerExit(Collider other)
+    void OnTriggerExit(Collider other)
     {
-        // enemy left, let them go again
         var agent = other.GetComponent<NavMeshAgent>();
-        if (agent != null)
+        if (agent != null && _frozenAgents.Remove(agent))
+        {
+            // unfreeze + immediately tell it where to go
             agent.isStopped = false;
+            agent.SetDestination(player.position);
+        }
+    }
+
+    /// <summary>
+    /// Call this after you disable the collider so anyone still inside
+    /// (who never got an OnTriggerExit) gets un‐stopped and told to chase again.
+    /// </summary>
+    public void ReleaseAll()
+    {
+        foreach (var agent in _frozenAgents)
+        {
+            if (agent == null) continue;
+            agent.isStopped = false;
+            agent.SetDestination(player.position);
+        }
+        _frozenAgents.Clear();
     }
 }

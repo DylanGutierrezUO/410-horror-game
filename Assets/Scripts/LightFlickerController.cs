@@ -3,15 +3,15 @@ using System.Collections;
 
 public class LightFlickerController : MonoBehaviour
 {
-    [SerializeField] Light     lamp;
-    [SerializeField] Collider  freezeZoneCollider;
-    [SerializeField] float     duration = 10f;
+    [SerializeField] Light               lamp;
+    [SerializeField] Collider            freezeZoneCollider;
+    [SerializeField] FreezeZoneTrigger   freezeZoneTrigger;
+    [SerializeField] float               duration = 10f;
 
     void Awake()
     {
-        // start dark and un‐frozen
-        lamp.enabled                = false;
-        freezeZoneCollider.enabled  = false;
+        lamp.enabled               = false;
+        freezeZoneCollider.enabled = false;
     }
 
     public void StartFlicker()
@@ -31,8 +31,11 @@ public class LightFlickerController : MonoBehaviour
             t += 0.05f;
         }
 
-        // turn off lamp and collider — collider.Disable will fire OnTriggerExit
+        // turn everything off
         lamp.enabled               = false;
         freezeZoneCollider.enabled = false;
+
+        // **now** explicitly release any agents still inside
+        freezeZoneTrigger.ReleaseAll();
     }
 }

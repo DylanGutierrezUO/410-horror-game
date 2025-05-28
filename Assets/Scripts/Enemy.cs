@@ -8,85 +8,92 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Animator))]
 public class EnemyFollowWhenNotSeen : MonoBehaviour
 {
-    public Transform player; // Player's transform to track movement and position
-    public Camera playerCamera; // Reference to the player's camera for line-of-sight and FOV check
-    public MonoBehaviour playerLookScript; // Reference to player's camera control script (to disable on attack)
-    public float detectionDistance = 20f; // Max range for detecting the player
-    public float fieldOfView = 60f; // Player's field of view angle for determining line of sight
+    public Transform player;              // Player's transform
+    public Camera   playerCamera;         // Reference to the player's camera
+    public MonoBehaviour playerLookScript;// (unused here, for disabling on death)
+    public float    detectionDistance = 20f;
+    public float    fieldOfView       = 60f;
 
-    private Animator animator; // Animator for controlling enemy animations
-    private NavMeshAgent agent; // NavMeshAgent for pathfinding
+    private Animator      animator;
+    private NavMeshAgent  agent;
 
-    /// <summary>
-    /// Initialize references to components and set stopping distance
-    /// </summary>
+    // --- NEW: freeze‐by‐light flag ---
+    private bool isFrozenByLight = false;
+
     void Start()
     {
-        // Stops enemy at the players feet
+        // Stops enemy at the player's feet
         agent = GetComponent<NavMeshAgent>();
         agent.stoppingDistance = 0f;
 
-        animator = GetComponent<Animator>(); // Get the Animator component for controlling animations/
-        agent = GetComponent<NavMeshAgent>(); // Get the NavMeshAgent component for pathfinding.
+        animator = GetComponent<Animator>();
+        agent    = GetComponent<NavMeshAgent>();
     }
 
-    /// <summary>
-    /// Main enemy behavior loop: checks visibility, movement, and attack triggers
-    /// </summary>
     void Update()
     {
-        if (player == null) return; // Ensure player reference is set before proceeding.
+        // --- NEW: if frozen by light, do nothing in Update() ---
+        if (isFrozenByLight)
+            return;
 
-        // Check if player is looking at enemy using dot product
-        // Vector3 toEnemy = (transform.position - player.position).normalized; // Direction from player to enemy.
-        // float dot = Vector3.Dot(player.forward, toEnemy); // Dot product to determine if player is looking at enemy.
-        // bool isPlayerLooking = dot > Mathf.Cos(fieldOfView * Mathf.Deg2Rad); // Check if player is looking at enemy based on field of view.
+        if (player == null) return;
 
+        // determine if player is looking
         bool isPlayerLooking = false;
-        Vector3 cameraOrigin = playerCamera.transform.position;
-        Vector3 directionToEnemy = (transform.position - cameraOrigin).normalized;
-
-        float angleToEnemy = Vector3.Angle(playerCamera.transform.forward, directionToEnemy);
-        if (angleToEnemy < fieldOfView / 2f)
+        Vector3 camOrig = playerCamera.transform.position;
+        Vector3 dirToEn = (transform.position - camOrig).normalized;
+        float   ang    = Vector3.Angle(playerCamera.transform.forward, dirToEn);
+        if (ang < fieldOfView/2f)
         {
-            RaycastHit hit;
-            if (Physics.Raycast(cameraOrigin, directionToEnemy, out hit, detectionDistance))
+            if (Physics.Raycast(camOrig, dirToEn, out var hit, detectionDistance)
+             && hit.transform == transform)
             {
-                if (hit.transform == transform)
-                {
-                    isPlayerLooking = true;
-                }
+                isPlayerLooking = true;
             }
         }
-        
-        float distance = Vector3.Distance(transform.position, player.position); // Distance from player to enemy.
 
-        Vector3 toEnemy = (transform.position - player.position).normalized; // Direction from player to enemy.
-        Debug.DrawRay(player.position, player.forward * 2f, Color.green); // Draw ray from player to show direction of view.
-        Debug.DrawRay(player.position, toEnemy * 2f, Color.red); // Draw ray from player to enemy to show direction to enemy.
-        //Debug.Log($"Distance: {distance}, isPlayerLooking: {isPlayerLooking}"); // Log distance and visibility status for debugging.
+        float distance = Vector3.Distance(transform.position, player.position);
 
-        // If player is not looking and enemy is in range, move toward player
-        // Check if the player is not looking at the enemy and the enemy is within detection range
+        Debug.DrawRay(player.position, player.forward * 2f, Color.green);
+        Debug.DrawRay(player.position, (transform.position-player.position).normalized * 2f, Color.red);
+
+        // movement logic
         if (!isPlayerLooking && distance < detectionDistance && distance > agent.stoppingDistance)
         {
-            agent.isStopped = false; // Enable movement.
-            agent.SetDestination(player.position); // Set the destination to the player's position.
-            animator.SetBool("IsWalking", true); // Set walking animation to true.
+            agent.isStopped = false;
+            agent.SetDestination(player.position);
+            animator.SetBool("IsWalking", true);
         }
         else
         {
-            // If player is looking or too far, stop moving
             agent.isStopped = true;
             animator.SetBool("IsWalking", false);
         }
 
-        // Ensure enemy is always facing the player horizontally
+        // face player
         Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
         transform.LookAt(lookPos);
     }
 
-    // Destroys enemy on level completion
+    // --- NEW: catch freeze‐zone triggers ---
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("FreezeZone"))
+        {
+            isFrozenByLight     = true;
+            agent.isStopped     = true;
+            animator.SetBool("IsWalking", false);
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("FreezeZone"))
+        {
+            isFrozenByLight = false;
+        }
+    }
+
     void OnEnable()
     {
         GameManager.OnLevelCompleteEvent += HandleLevelComplete;
@@ -99,7 +106,6 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
 
     private void HandleLevelComplete()
     {
-        // stop all behavior and remove from scene
         Destroy(gameObject);
     }
 
@@ -108,7 +114,4 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
         if (hit.collider.CompareTag("Player"))
             GameManager.Instance.PlayerDied();
     }
-
-
-
 }
