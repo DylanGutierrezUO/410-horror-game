@@ -3,7 +3,7 @@ using UnityEngine;
 public class KeyPickup : Interactable
 {
   // this is what the player will see
-  public override string InteractionPrompt => "Press E to pick up";
+  public override string InteractionPrompt => "Press E";
 
   public override void OnFocus()
   {
