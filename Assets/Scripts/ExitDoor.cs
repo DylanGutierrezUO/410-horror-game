@@ -1,36 +1,28 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-public class ExitDoor : MonoBehaviour {
-    private enum DoorState { Locked, Unlocked, Open }
-    private DoorState state = DoorState.Locked;
+public class ExitDoor : MonoBehaviour, IActivatable
+{
+    enum State { Locked, Unlocked, Open }
+    State state = State.Locked;
 
-    [SerializeField] private Animator doorAnimator; // optional
-    [SerializeField] private string unlockTrigger = "OpenDoor"; // Animator trigger name
+    [SerializeField] Animator doorAnimator;
+    [SerializeField] string openTrigger = "OpenDoor";
 
-    void OnEnable() {
-        Inventory.OnKeyCollected += Unlock;
-    }
-    void OnDisable() {
-        Inventory.OnKeyCollected -= Unlock;
-    }
+    public string InteractionPrompt
+        => state == State.Unlocked
+           ? "Press E to Open"
+           : "Locked – find the key";
 
-    void Unlock() {
-        if (state != DoorState.Locked) return;
-        state = DoorState.Unlocked;
-        // Optional: flash UI “Door unlocked”
-    }
-
-    void OnTriggerStay(Collider other) {
-        if (state != DoorState.Unlocked) return;
-        if (!other.CompareTag("Player")) return;
-        if (Input.GetKeyDown(KeyCode.E)) OpenDoor();
+    public void OnActivate()
+    {
+        if (state != State.Unlocked) return;
+        state = State.Open;
+        if (doorAnimator) doorAnimator.SetTrigger(openTrigger);
+        else transform.Translate(Vector3.up * 3f, Space.World);
+        GameManager.Instance.LevelComplete();
     }
 
-    void OpenDoor() {
-        state = DoorState.Open;
-        if (doorAnimator) doorAnimator.SetTrigger(unlockTrigger);
-        else transform.Translate(Vector3.up * 3f, Space.World); // fallback slide
-        // TODO: notify GameManager to end level
-    }
+    void OnEnable()  => Inventory.OnKeyCollected += () => state = State.Unlocked;
+    void OnDisable() => Inventory.OnKeyCollected -= () => state = State.Unlocked;
 }

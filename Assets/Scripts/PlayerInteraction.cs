@@ -1,39 +1,38 @@
 using UnityEngine;
+using TMPro;
 
-[RequireComponent(typeof(Camera))]
 public class PlayerInteraction : MonoBehaviour
 {
-    public float interactRange = 5f;
-    private Interactable currentFocus;
-    private Camera cam;
+  public float interactRange = 3f;
+  public TextMeshProUGUI promptUI;  // drag your TMP “Press E” TEXT here
 
-    void Start() => cam = GetComponent<Camera>();
+  IActivatable currentTarget;
 
-    void Update()
+  void Update()
+  {
+    // raycast
+    var ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+    if (Physics.Raycast(ray, out var hit, interactRange))
     {
-        // shoot a ray from center of screen
-        var ray = cam.ScreenPointToRay(
-          new Vector3(Screen.width/2f, Screen.height/2f));
-        if (Physics.Raycast(ray, out var hit, interactRange))
+      var a = hit.collider.GetComponent<IActivatable>();
+      if (a != null)
+      {
+        currentTarget = a;
+        promptUI.text = a.InteractionPrompt;
+        promptUI.gameObject.SetActive(true);
+
+        if (Input.GetKeyDown(KeyCode.E))
         {
-            var ia = hit.collider.GetComponent<Interactable>();
-            if (ia != null)
-            {
-                if (ia != currentFocus)
-                {
-                    currentFocus?.OnDefocus();
-                    currentFocus = ia;
-                    currentFocus.OnFocus();
-                }
-                if (Input.GetKeyDown(KeyCode.E))
-                    currentFocus.Interact();
-                return;
-            }
+          a.OnActivate();
+          promptUI.gameObject.SetActive(false);
+          currentTarget = null;
         }
-        if (currentFocus != null)
-        {
-            currentFocus.OnDefocus();
-            currentFocus = null;
-        }
+        return;
+      }
     }
+
+    // nothing interactive
+    currentTarget = null;
+    promptUI.gameObject.SetActive(false);
+  }
 }
