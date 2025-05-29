@@ -8,57 +8,46 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Animator))]
 public class EnemyFollowWhenNotSeen : MonoBehaviour
 {
-    public Transform player;              // Player's transform
-    public Camera   playerCamera;         // Reference to the player's camera
-    public MonoBehaviour playerLookScript;// (unused here, for disabling on death)
-    public float    detectionDistance = 20f;
-    public float    fieldOfView       = 60f;
+    [Header("Player Tracking")]
+    public Transform player;        // reference to the player's Transform
+    public Camera   playerCamera;   // reference to the player's camera
 
-    private Animator      animator;
-    private NavMeshAgent  agent;
+    [Header("Detection Settings")]
+    public float detectionDistance = 20f;
+    public float fieldOfView       = 60f;
 
-    // --- NEW: freeze‐by‐light flag ---
-    private bool isFrozenByLight = false;
+    // Components
+    private NavMeshAgent agent;
+    private Animator     animator;
 
     void Start()
     {
-        // Stops enemy at the player's feet
-        agent = GetComponent<NavMeshAgent>();
-        agent.stoppingDistance = 0f;
-
-        animator = GetComponent<Animator>();
         agent    = GetComponent<NavMeshAgent>();
+        animator = GetComponent<Animator>();
     }
 
     void Update()
     {
-        // --- NEW: if frozen by light, do nothing in Update() ---
-        if (isFrozenByLight)
-            return;
-
         if (player == null) return;
 
-        // determine if player is looking
-        bool isPlayerLooking = false;
-        Vector3 camOrig = playerCamera.transform.position;
-        Vector3 dirToEn = (transform.position - camOrig).normalized;
-        float   ang    = Vector3.Angle(playerCamera.transform.forward, dirToEn);
-        if (ang < fieldOfView/2f)
+        // 1) Check if the player is looking at us
+        Vector3 camPos    = playerCamera.transform.position;
+        Vector3 toEnemy   = (transform.position - camPos).normalized;
+        bool   isLooking  = false;
+        float  angle      = Vector3.Angle(playerCamera.transform.forward, toEnemy);
+
+        if (angle < fieldOfView * 0.5f &&
+            Physics.Raycast(camPos, toEnemy, out RaycastHit hit, detectionDistance) &&
+            hit.transform == transform)
         {
-            if (Physics.Raycast(camOrig, dirToEn, out var hit, detectionDistance)
-             && hit.transform == transform)
-            {
-                isPlayerLooking = true;
-            }
+            isLooking = true;
         }
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        // 2) Check distance
+        float dist = Vector3.Distance(transform.position, player.position);
 
-        Debug.DrawRay(player.position, player.forward * 2f, Color.green);
-        Debug.DrawRay(player.position, (transform.position-player.position).normalized * 2f, Color.red);
-
-        // movement logic
-        if (!isPlayerLooking && distance < detectionDistance && distance > agent.stoppingDistance)
+        // 3) Decide to move or idle
+        if (!isLooking && dist < detectionDistance)
         {
             agent.isStopped = false;
             agent.SetDestination(player.position);
@@ -70,28 +59,9 @@ public class EnemyFollowWhenNotSeen : MonoBehaviour
             animator.SetBool("IsWalking", false);
         }
 
-        // face player
-        Vector3 lookPos = new Vector3(player.position.x, transform.position.y, player.position.z);
-        transform.LookAt(lookPos);
-    }
-
-    // --- NEW: catch freeze‐zone triggers ---
-    void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("FreezeZone"))
-        {
-            isFrozenByLight     = true;
-            agent.isStopped     = true;
-            animator.SetBool("IsWalking", false);
-        }
-    }
-
-    void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("FreezeZone"))
-        {
-            isFrozenByLight = false;
-        }
+        // 4) Always face the player on the Y axis
+        Vector3 lookAtTarget = new Vector3(player.position.x, transform.position.y, player.position.z);
+        transform.LookAt(lookAtTarget);
     }
 
     void OnEnable()

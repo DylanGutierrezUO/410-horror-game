@@ -5,54 +5,61 @@ using System.Collections.Generic;
 [RequireComponent(typeof(Collider))]
 public class FreezeZoneTrigger : MonoBehaviour
 {
-    [Tooltip("Drag your Player Transform here so we know where to chase.")]
-    public Transform player;
+    [Tooltip("Only freeze while this lamp is on")]
+    [SerializeField] private Light lamp;
 
-    // internal list of everyone we froze
-    private readonly HashSet<NavMeshAgent> _frozenAgents = new HashSet<NavMeshAgent>();
-    private Collider _col;
+    [Tooltip("Speed to apply when 'frozen'")]
+    [SerializeField] private float freezeSpeed = 1f;
+
+    // store each agent's original speed so we can restore it
+    private Dictionary<NavMeshAgent, float> _originalSpeeds = new Dictionary<NavMeshAgent, float>();
 
     void Awake()
     {
-        _col = GetComponent<Collider>();
-        _col.isTrigger = true;            // make sure it's a trigger
+        var col = GetComponent<Collider>();
+        col.isTrigger = true;
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        var agent = other.GetComponent<NavMeshAgent>();
-        var anim  = other.GetComponent<Animator>();
-        if (agent != null)
-        {
-            agent.isStopped = true;       // freeze movement
-            if (anim) anim.SetBool("IsWalking", false);
-            _frozenAgents.Add(agent);     // remember it
-        }
-    }
+    void OnTriggerEnter(Collider other) => TryFreeze(other);
+    void OnTriggerStay(Collider other)  => TryFreeze(other);
 
     void OnTriggerExit(Collider other)
     {
         var agent = other.GetComponent<NavMeshAgent>();
-        if (agent != null && _frozenAgents.Remove(agent))
+        if (agent != null && _originalSpeeds.ContainsKey(agent))
         {
-            // unfreeze + immediately tell it where to go
-            agent.isStopped = false;
-            agent.SetDestination(player.position);
+            // restore full speed
+            agent.speed = _originalSpeeds[agent];
+            _originalSpeeds.Remove(agent);
+
+            // (optional) immediately reassign destination so they start moving again
+            agent.SetDestination(agent.destination);  
         }
     }
 
-    /// <summary>
-    /// Call this after you disable the collider so anyone still inside
-    /// (who never got an OnTriggerExit) gets un‐stopped and told to chase again.
-    /// </summary>
+    private void TryFreeze(Collider other)
+    {
+        if (lamp == null || !lamp.enabled) return;
+
+        var agent = other.GetComponent<NavMeshAgent>();
+        if (agent != null && !_originalSpeeds.ContainsKey(agent))
+        {
+            // stash original
+            _originalSpeeds[agent] = agent.speed;
+            // apply tiny crawl speed instead of 0
+            agent.speed = freezeSpeed;
+        }
+    }
+
+    // Called manually from your Flicker controller if you want a global un-freeze
     public void ReleaseAll()
     {
-        foreach (var agent in _frozenAgents)
-        {
-            if (agent == null) continue;
-            agent.isStopped = false;
-            agent.SetDestination(player.position);
-        }
-        _frozenAgents.Clear();
+        foreach (var kv in _originalSpeeds)
+            if (kv.Key != null)
+                kv.Key.speed = kv.Value;
+        _originalSpeeds.Clear();
     }
+
+    // If the zone gets disabled, make sure nobody stays frozen
+    void OnDisable() => ReleaseAll();
 }
