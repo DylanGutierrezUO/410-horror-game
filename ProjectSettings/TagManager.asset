@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Enemy
   - FreezeZone
+  - Note
   layers:
   - Default
   - TransparentFX
