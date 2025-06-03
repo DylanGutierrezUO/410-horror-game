@@ -16,7 +16,7 @@ public class GameManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    void Update()
+    /*void Update()
     {
         // Restart the current scene when the player presses R
         if (Input.GetKeyDown(KeyCode.R))
@@ -24,6 +24,13 @@ public class GameManager : MonoBehaviour
             Debug.Log("Restarting level...");
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
+    }*/
+
+    public void RestartCurrentLevel()
+    {
+        Debug.Log("GameManager: RestartCurrentLevel() - Reloading current scene...");
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void LevelComplete()
