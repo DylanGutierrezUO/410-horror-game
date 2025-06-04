@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Events;
 
 public class SwitchActivator : MonoBehaviour, IActivatable
@@ -7,10 +8,25 @@ public class SwitchActivator : MonoBehaviour, IActivatable
   public string InteractionPrompt => "Press E";
 
   public UnityEvent OnActivated;
+  [SerializeField] private AudioSource audioSource; // Reference to AudioSource
+  [SerializeField] private AudioClip activationSound; // Sound to play
 
-  // PlayerInteraction will call this:
+    // PlayerInteraction will call this:
   public void OnActivate()
   {
-    OnActivated.Invoke();
+        if (audioSource && activationSound)
+        {
+            GameObject tempGO = new GameObject("TempAudio");
+            tempGO.transform.position = transform.position;
+
+            AudioSource tempAudio = tempGO.AddComponent<AudioSource>();
+            tempAudio.clip = activationSound;
+            tempAudio.volume = 0.125f;  
+            tempAudio.Play();
+
+            Destroy(tempGO, activationSound.length);
+        }
+
+        OnActivated.Invoke();
   }
 }
